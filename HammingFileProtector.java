@@ -161,34 +161,39 @@ public class HammingFileProtector {
     // Codificación Hamming para bloques de 8 bits (4 bits de datos + 4 bits de paridad)
     public static byte[] hamming8Encode(byte[] data) {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte encoded;
 
         for (byte b : data) {
-            // Partir en dos núcleos de 4 bits
+            // Partir en dos partes de 4
             for (int i = 0; i < 2; i++) {
-                int nibble = (i == 0) ? ((b >> 4) & 0x0F) : (b & 0x0F);
+                byte nupla = (byte) ((i == 0) ? ((b >> 4) & 0x0F) : (b & 0x0F));
 
-                // Datos aislados
-                int d3 = (nibble >> 3) & 1;
-                int d5 = (nibble >> 2) & 1;
-                int d6 = (nibble >> 1) & 1;
-                int d7 = nibble & 1;
+                //Codificacion de bits
 
-                // Bits de control
-                int c1 = d3 ^ d5 ^ d7;
-                int c2 = d3 ^ d6 ^ d7;
-                int c4 = d5 ^ d6 ^ d7;
-                int c8 = c1 ^ c2 ^ c4 ^ d3 ^ d5 ^ d6 ^ d7; // paridad global
+                //Bit de control c1 pos 7
+                encoded = (byte) (((((nupla >> 3) & 1) ^ ((nupla >> 2) & 1) ^ ((nupla) & 1)) << 7) | 
+                
+                //bit de control c2 pos 6
+                ((((nupla >> 3) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)) << 6) | 
 
-                // Byte codificado limpio
-                int encoded =
-                        (c1 << 7) |
-                                (c2 << 6) |
-                                (d3 << 5) |          // ya está &1, no se desborda
-                                (c4 << 4) |
-                                (d5 << 3) |
-                                (d6 << 2) |
-                                (d7 << 1) |
-                                c8;
+                //Bit de dato d3, pos 5
+                (((nupla >> 3) & 1) << 5) | 
+
+                //Bit de control c4 pos 4
+                ((((nupla >> 2) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)) << 4) |
+
+                //Bit de dato d5 pos 3
+                (((nupla >> 2) & 1) << 3) |
+                
+                //Bit de dato d6 pos 2
+                (((nupla >> 1) & 1) << 2) |
+
+                //Bit de dato d7 pos 1
+                (((nupla) & 1) << 1) |
+                //Bit de paridad 8            c1                               c2                                                        c3
+                (((nupla >> 3) & 1) ^ ((nupla >> 2) & 1) ^ ((nupla) & 1)) ^ (((nupla >> 3) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)) ^ (((nupla >> 2) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)) ^ //Bits de control
+                ((nupla >> 3) & 1) ^ ((nupla >> 2) & 1) ^ ((nupla) & 1) ^ ((nupla) & 1)  // bits de datos
+                );
 
                 output.write(encoded);
             }
@@ -203,35 +208,42 @@ public class HammingFileProtector {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         boolean highNibble = true;
         int tempByte = 0;
-
+    
         for (byte b : encodedData) {
             int bits = b & 0xFF; // Convertir a int para evitar problemas de signo
-
-            // Calcular síndromes directamente (sin variables para cada bit)
+    
+            // Calcular síndromes
             int s1 = ((bits >> 7) & 1) ^ ((bits >> 5) & 1) ^ ((bits >> 3) & 1) ^ ((bits >> 1) & 1);
             int s2 = ((bits >> 6) & 1) ^ ((bits >> 5) & 1) ^ ((bits >> 2) & 1) ^ ((bits >> 1) & 1);
             int s4 = ((bits >> 4) & 1) ^ ((bits >> 3) & 1) ^ ((bits >> 2) & 1) ^ ((bits >> 1) & 1);
-            int errorPos = s1 | (s2 << 1) | (s4 << 2);
-
-            int paridad = 0;
-            for(int i = 7; 1 >= i; i--){
-                paridad ^= (bits >> i);
+            int errorPos = s1 + (s2 << 1) + (s4 << 2);
+    
+            // Calcular paridad global (XOR de todos los bits)
+            int globalParity = 0;
+            for (int i = 0; i < 8; i++) {
+                globalParity ^= (bits >> i) & 1;
             }
-            // Corregir error si es necesario
-            if (errorPos != 0 && (paridad != 0)) { // hay 1 error
-                bits ^= (1 << (8 - errorPos));
-            } else if (errorPos != 0) {  //Dos errores
-                System.out.println("Dos errores detectados, no se puede corregir.");
-            } if(errorPos == 0 && paridad != 0){  //Error en bit de paridad
-                bits ^= 1;
+    
+            // Lógica de corrección
+            if (errorPos != 0) {
+                if (globalParity == 1) {
+                    // Error corregible (1 bit)
+                    bits ^= (1 << (8 - errorPos));
+                } else {
+                    // Dos errores detectados (no corregible)
+                    System.out.println("Dos errores detectados, no se puede corregir.");
+                }
+            } else if (globalParity == 1) {
+                // Error en el bit de paridad global
+                bits ^= 1; // Corregir el bit de paridad
             }
-
-            // Extraer nibble (d3, d5, d6, d7) directamente después de la corrección
+    
+            // Extraer nibble (d3, d5, d6, d7)
             int nibble = ((bits >> 5) & 1) << 3 | // d3
-                    ((bits >> 3) & 1) << 2 | // d5
-                    ((bits >> 2) & 1) << 1 | // d6
-                    ((bits >> 1) & 1);       // d7
-
+                         ((bits >> 3) & 1) << 2 | // d5
+                         ((bits >> 2) & 1) << 1 | // d6
+                         ((bits >> 1) & 1);       // d7
+    
             // Combinar nibbles
             if (highNibble) {
                 tempByte = nibble << 4;
@@ -241,7 +253,7 @@ public class HammingFileProtector {
                 highNibble = true;
             }
         }
-
+    
         return output.toByteArray();
     }
 

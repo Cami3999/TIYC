@@ -62,18 +62,44 @@ public class HammingFileProtector {
                         switch (currentScheme) {
                             case 1:
                                 protectedData = hamming8Encode(originalData);
-                                Files.write(Paths.get("HA1.txt"), protectedData);
-                                System.out.println("✅ Archivo protegido con Hamming-8 guardado como " + currentFilename + ".HA1");
+                                StringBuilder hexContent = new StringBuilder();
+                                for (byte b : protectedData) {
+                                    hexContent.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
+                                }
+
+                                // Guardar el string hexadecimal en el archivo
+                                Files.write(Paths.get("Protected.HA1"), hexContent.toString().getBytes());
+                                System.out.println("✅ Archivo protegido con Hamming-8 guardado como " + currentFilename + ".HA1 (formato hexadecimal)");
                                 break;
                             case 2:
-                                protectedData = hamming256Encode(originalData);
+                                /*protectedData = hamming256Encode(originalData);
                                 Files.write(Paths.get("HA2.txt"), protectedData);
-                                System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2");
+                                System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2");*/
+
+                                protectedData = hamming256Encode(originalData);
+                                StringBuilder hexContent256 = new StringBuilder();
+                                for (byte b : protectedData) {
+                                    hexContent256.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
+                                }
+
+                                // Guardar el string hexadecimal en el archivo
+                                Files.write(Paths.get("Protected.HA2"), hexContent256.toString().getBytes());
+                                System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2 (formato hexadecimal)");
                                 break;
                             case 3:
-                                protectedData = hamming4096Encode(originalData);
+                                /*protectedData = hamming4096Encode(originalData);
                                 Files.write(Paths.get("HA3.txt"), protectedData);
-                                System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3");
+                                System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3");*/
+
+                                protectedData = hamming8Encode(originalData);
+                                StringBuilder hexContent4096 = new StringBuilder();
+                                for (byte b : protectedData) {
+                                    hexContent4096.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
+                                }
+
+                                // Guardar el string hexadecimal en el archivo
+                                Files.write(Paths.get("Protected.HA3"), hexContent4096.toString().getBytes());
+                                System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3 (formato hexadecimal)");
                                 break;
                             default:
                                 System.out.println("❌ Selecciona un esquema primero");
@@ -86,10 +112,24 @@ public class HammingFileProtector {
                             break;
                         }
                         int blockSize = (currentScheme == 1) ? 8
-                                : (currentScheme == 2) ? 256
-                                : 4096;
+                        : (currentScheme == 2) ? 256
+                        : 4096;
                         corruptedData = introduceErrors(protectedData, blockSize);
-                        Files.write(Paths.get(currentFilename + "_corrupted"), corruptedData);
+                        StringBuilder hexContent = new StringBuilder();
+                        for (byte b : corruptedData) {
+                             hexContent.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
+                        }
+                            // Guardar el string hexadecimal en el archivo
+                        switch (currentScheme) {
+                            case 1: Files.write(Paths.get("Corrupted.HE1"), hexContent.toString().getBytes());
+                                break;
+                            case 2: Files.write(Paths.get("Corrupted.HE2"), hexContent.toString().getBytes());
+                                break;
+                            case 3: Files.write(Paths.get("Corrupted.HE3"), hexContent.toString().getBytes());
+                                break;
+                            default:
+                                break;
+                        }
                         System.out.println("✅ Errores introducidos");
                         break;
                     case 5:
@@ -114,7 +154,16 @@ public class HammingFileProtector {
                                 continue;
                         }
                         recoveredData = Arrays.copyOf(recoveredData, originalData.length);
-                        Files.write(Paths.get(currentFilename + "_recovered.txt"), recoveredData);
+                        switch (currentScheme) {
+                            case 1: Files.write(Paths.get("Recovered.HE1"), corruptedData);
+                                break;
+                            case 2: Files.write(Paths.get("Recovered.HE2"), corruptedData);
+                                break;
+                            case 3: Files.write(Paths.get("Recovered.HE3"), corruptedData);
+                                break;
+                            default:
+                                break;
+                        }
                         System.out.println("✅ Decodificado y corregido (_recovered.txt)");
                         System.out.println("--- Original vs Recuperado ---");
                         System.out.println(new String(originalData, 0, Math.min(50, originalData.length)) + "...");
@@ -190,9 +239,9 @@ public class HammingFileProtector {
 
                 //Bit de dato d7 pos 1
                 (((nupla) & 1) << 1) |
-                //Bit de paridad 8            c1                               c2                                                        c3
+                //Bit de paridad 8            c1                               c2                                                        c4
                 (((nupla >> 3) & 1) ^ ((nupla >> 2) & 1) ^ ((nupla) & 1)) ^ (((nupla >> 3) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)) ^ (((nupla >> 2) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)) ^ //Bits de control
-                ((nupla >> 3) & 1) ^ ((nupla >> 2) & 1) ^ ((nupla) & 1) ^ ((nupla) & 1)  // bits de datos
+                ((nupla >> 3) & 1) ^ ((nupla >> 2) & 1) ^ ((nupla >> 1) & 1) ^ ((nupla) & 1)  // bits de datos
                 );
 
                 output.write(encoded);
@@ -264,20 +313,11 @@ public class HammingFileProtector {
         int tempByte = 0;
 
         for (byte b : encodedData) {
-            int d3 = (b >> 5) & 1;
-            int d5 = (b >> 3) & 1;
-            int d6 = (b >> 2) & 1;
-            int d7 = (b >> 1) & 1;
-            int nibble = (d3 << 3) | (d5 << 2) | (d6 << 1) | d7;
-            if (highNibble) {
-                tempByte = (nibble << 4) & 0xF0;
-                highNibble = false;
-            } else {
-                output.write(tempByte | (nibble & 0x0F));
-                highNibble = true;
-            }
+            tempByte = ((b >> 5) & 1) << 3;
+            tempByte = ((b >> 3) & 1) << 2;
+            tempByte = ((b >> 2) & 1) << 2;
+            tempByte = ((b >> 1) & 1);
         }
-
         return output.toByteArray();
     }
 

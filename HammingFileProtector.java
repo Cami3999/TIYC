@@ -3,6 +3,7 @@
 //Jaraja
 import java.io.*;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 
 public class HammingFileProtector {
@@ -15,6 +16,7 @@ public class HammingFileProtector {
         byte[] corruptedData = null;
         String currentFilename = "";
         int currentScheme = 0; // 1=8 bits, 2=256 bits, 3=4096 bits (*)
+        StringBuilder hexContent = new StringBuilder();
 
         while (true) { // Cambio en el formato del menu (*)
             System.out.println("\n🔒 MENÚ DE PROTECCIÓN DE ARCHIVOS CON HAMMING 🔒");
@@ -62,10 +64,7 @@ public class HammingFileProtector {
                         switch (currentScheme) {
                             case 1:
                                 protectedData = hamming8Encode(originalData);
-                                StringBuilder hexContent = new StringBuilder();
-                                for (byte b : protectedData) {
-                                    hexContent.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
-                                }
+                                hexContent = Traduccion(protectedData);
 
                                 // Guardar el string hexadecimal en el archivo
                                 Files.write(Paths.get("Protected.HA1"), hexContent.toString().getBytes());
@@ -77,13 +76,10 @@ public class HammingFileProtector {
                                 System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2");*/
 
                                 protectedData = hamming256Encode(originalData);
-                                StringBuilder hexContent256 = new StringBuilder();
-                                for (byte b : protectedData) {
-                                    hexContent256.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
-                                }
+                                hexContent = Traduccion(protectedData);
 
                                 // Guardar el string hexadecimal en el archivo
-                                Files.write(Paths.get("Protected.HA2"), hexContent256.toString().getBytes());
+                                Files.write(Paths.get("Protected.HA2"), hexContent.toString().getBytes());
                                 System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2 (formato hexadecimal)");
                                 break;
                             case 3:
@@ -92,13 +88,10 @@ public class HammingFileProtector {
                                 System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3");*/
 
                                 protectedData = hamming8Encode(originalData);
-                                StringBuilder hexContent4096 = new StringBuilder();
-                                for (byte b : protectedData) {
-                                    hexContent4096.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
-                                }
+                                hexContent = Traduccion(protectedData);
 
                                 // Guardar el string hexadecimal en el archivo
-                                Files.write(Paths.get("Protected.HA3"), hexContent4096.toString().getBytes());
+                                Files.write(Paths.get("Protected.HA3"), hexContent.toString().getBytes());
                                 System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3 (formato hexadecimal)");
                                 break;
                             default:
@@ -115,10 +108,8 @@ public class HammingFileProtector {
                         : (currentScheme == 2) ? 256
                         : 4096;
                         corruptedData = introduceErrors(protectedData, blockSize);
-                        StringBuilder hexContent = new StringBuilder();
-                        for (byte b : corruptedData) {
-                             hexContent.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
-                        }
+                        hexContent = Traduccion(corruptedData);
+
                             // Guardar el string hexadecimal en el archivo
                         switch (currentScheme) {
                             case 1: Files.write(Paths.get("Corrupted.HE1"), hexContent.toString().getBytes());
@@ -153,13 +144,13 @@ public class HammingFileProtector {
                                 System.out.println("❌ Esquema no válido");
                                 continue;
                         }
-                        recoveredData = Arrays.copyOf(recoveredData, originalData.length);
+                        //recoveredData = Arrays.copyOf(recoveredData, originalData.length);
                         switch (currentScheme) {
-                            case 1: Files.write(Paths.get("Recovered.HE1"), corruptedData);
+                            case 1: Files.write(Paths.get("Recovered.DE1"), recoveredData);
                                 break;
-                            case 2: Files.write(Paths.get("Recovered.HE2"), corruptedData);
+                            case 2: Files.write(Paths.get("Recovered.DE2"), recoveredData);
                                 break;
-                            case 3: Files.write(Paths.get("Recovered.HE3"), corruptedData);
+                            case 3: Files.write(Paths.get("Recovered.DE3"), recoveredData);
                                 break;
                             default:
                                 break;
@@ -179,18 +170,21 @@ public class HammingFileProtector {
                         switch (currentScheme) {
                             case 1:
                                 rawData = hamming8DecodeNoCorrect(corruptedData);
+                                Files.write(Paths.get("No_Corregido.DE1"), rawData);
                                 break;
                             case 2:
                                 rawData = hamming256DecodeNoCorrect(corruptedData);
+                                Files.write(Paths.get("No_Corregido.DE2"), rawData);
                                 break;
                             case 3:
                                 rawData = hamming4096DecodeNoCorrect(corruptedData);
+                                Files.write(Paths.get("No_Corregido.DE3"), rawData);
                                 break;
                             default:
                                 System.out.println("❌ Esquema no válido");
                                 continue;
                         }
-                        rawData = Arrays.copyOf(rawData, originalData.length);
+                        //rawData = Arrays.copyOf(rawData, originalData.length);
                         System.out.println("=== TEXTO CON ERRORES ===");
                         System.out.println(new String(rawData));
                         break;
@@ -205,6 +199,14 @@ public class HammingFileProtector {
                 System.out.println("❌ Error: " + e.getMessage());
             }
         }
+    }
+
+    public static StringBuilder Traduccion(byte[] Data){
+        StringBuilder hexContent = new StringBuilder();
+        for (byte b : Data) {    
+            hexContent.append(String.format("%02X ", b)); // %02X = 2 dígitos en mayúsculas
+        }
+        return hexContent;
     }
 
     // Codificación Hamming para bloques de 8 bits (4 bits de datos + 4 bits de paridad)
@@ -305,22 +307,32 @@ public class HammingFileProtector {
     
         return output.toByteArray();
     }
-
-    // Decodificación Hamming‑8 SIN corrección
+    
     public static byte[] hamming8DecodeNoCorrect(byte[] encodedData) {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         boolean highNibble = true;
         int tempByte = 0;
-
+    
         for (byte b : encodedData) {
-            tempByte = ((b >> 5) & 1) << 3;
-            tempByte = ((b >> 3) & 1) << 2;
-            tempByte = ((b >> 2) & 1) << 2;
-            tempByte = ((b >> 1) & 1);
+            // Armar directamente el nibble
+            int nibble = ((b >> 5) & 1) << 3 | // d3
+                         ((b >> 3) & 1) << 2 | // d5
+                         ((b >> 2) & 1) << 1 | // d6
+                         ((b >> 1) & 1);       // d7
+    
+            if (highNibble) {
+                tempByte = nibble << 4;
+                highNibble = false;
+            } else {
+                tempByte |= nibble;
+                output.write(tempByte);
+                highNibble = true;
+            }
         }
+    
         return output.toByteArray();
     }
-
+    
 
     // Codificación Hamming para bloques de 256 bits (simplificado)
     public static byte[] hamming256Encode(byte[] data) throws IOException {
@@ -328,7 +340,7 @@ public class HammingFileProtector {
         final int totalBits  = 256;
         final int r          = 8;                       // r bits de paridad (7 primarios + 1 global)
         final int dataBits   = totalBits - r;           // 248 bits de datos
-        final int blockBytes = (dataBits + 7) / 8;       // 31 bytes de datos
+        final int blockBytes = 31;       // 31 bytes de datos
 
         for (int i = 0; i < data.length; i += blockBytes) {
             int end   = Math.min(i + blockBytes, data.length);
@@ -343,7 +355,7 @@ public class HammingFileProtector {
             // Array de bits para el código completo
             boolean[] code = new boolean[totalBits];
 
-            // 1) Copiar bits de datos en posiciones que NO son potencias de 2
+            //  Copiar bits de datos en posiciones que NO son potencias de 2
             int dataBitIndex = 0;
             for (int bitPos = 1; bitPos <= totalBits; bitPos++) {
                 if ((bitPos & (bitPos - 1)) != 0) { // no es potencia de 2
@@ -358,7 +370,7 @@ public class HammingFileProtector {
                 }
             }
 
-            // 2) Calcular paridades primarias (posiciones 1,2,4,8,16,32,64)
+            //  Calcular bits de control(posiciones 1,2,4,8,16,32,64)
             for (int p = 0; p < r - 1; p++) {
                 int pos = 1 << p;
                 boolean parity = false;
@@ -370,7 +382,7 @@ public class HammingFileProtector {
                 code[pos - 1] = parity;
             }
 
-            // 3) Calcular paridad global en posición 128 (2^(r-1))
+            // Calcular paridad global en posición 128 (2^(r-1))
             int globalPos = 1 << (r - 1);
             boolean globalParity = false;
             for (int bitPos = 1; bitPos <= totalBits; bitPos++) {

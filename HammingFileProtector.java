@@ -19,12 +19,12 @@ public class HammingFileProtector {
         StringBuilder hexContent = new StringBuilder();
 
         while (true) { // Cambio en el formato del menu (*)
-            System.out.println("\n🔒 MENÚ DE PROTECCIÓN DE ARCHIVOS CON HAMMING 🔒");
+            System.out.println("\n* MENÚ DE PROTECCIÓN DE ARCHIVOS CON HAMMING *");
             System.out.println("1. Cargar archivo (.txt)");
             System.out.println("2. Seleccionar esquema de Hamming");
-            System.out.println("   1) 8 bits   → .HA1");
-            System.out.println("   2) 256 bits → .HA2");
-            System.out.println("   3) 4096 bits→ .HA3");
+            System.out.println("   1) 8 bits    -> .HA1");
+            System.out.println("   2) 256 bits  -> .HA2");
+            System.out.println("   3) 4096 bits -> .HA3");
             System.out.println("3. Codificar archivo");
             System.out.println("4. Introducir errores (máx. 1 por módulo)");
             System.out.println("5. Decodificar con corrección");
@@ -41,7 +41,7 @@ public class HammingFileProtector {
                         System.out.print("Ingrese el nombre del archivo: ");
                         currentFilename = scanner.nextLine();
                         originalData = Files.readAllBytes(Paths.get(currentFilename));
-                        System.out.println("✅ Archivo cargado correctamente. Tamaño: " + originalData.length + " bytes");
+                        System.out.println("Archivo cargado correctamente. Tamaño: " + originalData.length + " bytes");
                         break;
 
                     case 2:
@@ -50,15 +50,15 @@ public class HammingFileProtector {
                         String sch = scanner.nextLine();
                         if ("1".equals(sch) || "2".equals(sch) || "3".equals(sch)) {
                             currentScheme = Integer.parseInt(sch);
-                            System.out.println("✅ Esquema " + currentScheme + " seleccionado");
+                            System.out.println("Esquema " + currentScheme + " seleccionado");
                         } else {
-                            System.out.println("❌ Esquema no válido");
+                            System.out.println("Esquema no válido");
                         }
                         break;
                     case 3:
                         // Codificar
                         if (originalData == null) {
-                            System.out.println("❌ Primero carga un archivo");
+                            System.out.println("Primero carga un archivo");
                             break;
                         }
                         switch (currentScheme) {
@@ -68,40 +68,33 @@ public class HammingFileProtector {
 
                                 // Guardar el string hexadecimal en el archivo
                                 Files.write(Paths.get("Protected.HA1"), hexContent.toString().getBytes());
-                                System.out.println("✅ Archivo protegido con Hamming-8 guardado como " + currentFilename + ".HA1 (formato hexadecimal)");
+                                System.out.println("Archivo protegido con Hamming-8 guardado como " + "Protected.HA1 (formato hexadecimal)");
                                 break;
                             case 2:
-                                /*protectedData = hamming256Encode(originalData);
-                                Files.write(Paths.get("HA2.txt"), protectedData);
-                                System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2");*/
-
                                 protectedData = hamming256Encode(originalData);
                                 hexContent = Traduccion(protectedData);
 
                                 // Guardar el string hexadecimal en el archivo
                                 Files.write(Paths.get("Protected.HA2"), hexContent.toString().getBytes());
-                                System.out.println("✅ Archivo protegido con Hamming-256 guardado como " + currentFilename + ".HA2 (formato hexadecimal)");
+                                System.out.println("Archivo protegido con Hamming-256 guardado como " + "Protected.HA2 (formato hexadecimal)");
                                 break;
                             case 3:
-                                /*protectedData = hamming4096Encode(originalData);
-                                Files.write(Paths.get("HA3.txt"), protectedData);
-                                System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3");*/
 
                                 protectedData = hamming4096Encode(originalData);
                                 hexContent = Traduccion(protectedData);
 
                                 // Guardar el string hexadecimal en el archivo
                                 Files.write(Paths.get("Protected.HA3"), hexContent.toString().getBytes());
-                                System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3 (formato hexadecimal)");
+                                System.out.println("Archivo protegido con Hamming-4096 guardado como " + "Protected.HA3 (formato hexadecimal)");
                                 break;
                             default:
-                                System.out.println("❌ Selecciona un esquema primero");
+                                System.out.println("Selecciona un esquema primero");
                         }
                         break;
                     case 4:
                         // Introducir errores
                         if (protectedData == null) {
-                            System.out.println("❌ Primero codifica un archivo");
+                            System.out.println("Primero codifica un archivo");
                             break;
                         }
                         int blockSize = (currentScheme == 1) ? 8 : (currentScheme == 2) ? 256 : 4096;
@@ -119,12 +112,12 @@ public class HammingFileProtector {
                             default:
                                 break;
                         }
-                        System.out.println("✅ Errores introducidos");
+                        System.out.println("Errores introducidos");
                         break;
                     case 5:
                         // Decodificar con corrección
                         if (corruptedData == null) {
-                            System.out.println("❌ Primero introduce errores");
+                            System.out.println("Primero introduce errores");
                             break;
                         }
                         byte[] recoveredData;
@@ -139,7 +132,7 @@ public class HammingFileProtector {
                                 recoveredData = hamming4096Decode(corruptedData);
                                 break;
                             default:
-                                System.out.println("❌ Esquema no válido");
+                                System.out.println("Esquema no válido");
                                 continue;
                         }
                         recoveredData = Arrays.copyOf(recoveredData, originalData.length);
@@ -153,7 +146,7 @@ public class HammingFileProtector {
                             default:
                                 break;
                         }
-                        System.out.println("✅ Decodificado y corregido (_recovered.txt)");
+                        System.out.println("Decodificado y corregido (Recovered.DCx)");
                         System.out.println("--- Original vs Recuperado ---");
                         System.out.println(new String(originalData, 0, Math.min(50, originalData.length)) + "...");
                         System.out.println(new String(recoveredData, 0, Math.min(50, recoveredData.length)) + "...");
@@ -161,7 +154,7 @@ public class HammingFileProtector {
                     case 6:
                         // Decodificar sin corrección
                         if (corruptedData == null) {
-                            System.out.println("❌ Primero introduce errores");
+                            System.out.println("Primero introduce errores");
                             break;
                         }
                         byte[] rawData;
@@ -182,7 +175,7 @@ public class HammingFileProtector {
                                 Files.write(Paths.get("No_Corregido.DE3"), rawData);
                                 break;
                             default:
-                                System.out.println("❌ Esquema no válido");
+                                System.out.println("Esquema no válido");
                                 continue;
                         }
                         System.out.println("=== TEXTO CON ERRORES ===");
@@ -193,10 +186,10 @@ public class HammingFileProtector {
                         scanner.close();
                         return;
                     default:
-                        System.out.println("❌ Opción no válida");
+                        System.out.println("Opción no válida");
                 }
             } catch (IOException e) {
-                System.out.println("❌ Error: " + e.getMessage());
+                System.out.println("Error: " + e.getMessage());
             }
         }
     }

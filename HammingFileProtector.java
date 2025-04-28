@@ -87,7 +87,7 @@ public class HammingFileProtector {
                                 Files.write(Paths.get("HA3.txt"), protectedData);
                                 System.out.println("✅ Archivo protegido con Hamming-4096 guardado como " + currentFilename + ".HA3");*/
 
-                                protectedData = hamming8Encode(originalData);
+                                protectedData = hamming4096Encode(originalData);
                                 hexContent = Traduccion(protectedData);
 
                                 // Guardar el string hexadecimal en el archivo
@@ -104,9 +104,7 @@ public class HammingFileProtector {
                             System.out.println("❌ Primero codifica un archivo");
                             break;
                         }
-                        int blockSize = (currentScheme == 1) ? 8
-                        : (currentScheme == 2) ? 256
-                        : 4096;
+                        int blockSize = (currentScheme == 1) ? 8 : (currentScheme == 2) ? 256 : 4096;
                         corruptedData = introduceErrors(protectedData, blockSize);
                         hexContent = Traduccion(corruptedData);
 
@@ -144,13 +142,13 @@ public class HammingFileProtector {
                                 System.out.println("❌ Esquema no válido");
                                 continue;
                         }
-                        //recoveredData = Arrays.copyOf(recoveredData, originalData.length);
+                        recoveredData = Arrays.copyOf(recoveredData, originalData.length);
                         switch (currentScheme) {
-                            case 1: Files.write(Paths.get("Recovered.DE1"), recoveredData);
+                            case 1: Files.write(Paths.get("Recovered.DC1"), recoveredData);
                                 break;
-                            case 2: Files.write(Paths.get("Recovered.DE2"), recoveredData);
+                            case 2: Files.write(Paths.get("Recovered.DC2"), recoveredData);
                                 break;
-                            case 3: Files.write(Paths.get("Recovered.DE3"), recoveredData);
+                            case 3: Files.write(Paths.get("Recovered.DC3"), recoveredData);
                                 break;
                             default:
                                 break;
@@ -170,21 +168,23 @@ public class HammingFileProtector {
                         switch (currentScheme) {
                             case 1:
                                 rawData = hamming8DecodeNoCorrect(corruptedData);
+                                //rawData = Arrays.copyOf(rawData, originalData.length);
                                 Files.write(Paths.get("No_Corregido.DE1"), rawData);
                                 break;
                             case 2:
                                 rawData = hamming256DecodeNoCorrect(corruptedData);
+                                //rawData = Arrays.copyOf(rawData, originalData.length);
                                 Files.write(Paths.get("No_Corregido.DE2"), rawData);
                                 break;
                             case 3:
                                 rawData = hamming4096DecodeNoCorrect(corruptedData);
+                                //rawData = Arrays.copyOf(rawData, originalData.length);
                                 Files.write(Paths.get("No_Corregido.DE3"), rawData);
                                 break;
                             default:
                                 System.out.println("❌ Esquema no válido");
                                 continue;
                         }
-                        //rawData = Arrays.copyOf(rawData, originalData.length);
                         System.out.println("=== TEXTO CON ERRORES ===");
                         System.out.println(new String(rawData));
                         break;
@@ -270,21 +270,21 @@ public class HammingFileProtector {
             int errorPos = s1 + (s2 << 1) + (s4 << 2);
     
             // Calcular paridad global (XOR de todos los bits)
-            int globalParity = 0;
+            int paridad = 0;
             for (int i = 0; i < 8; i++) {
-                globalParity ^= (bits >> i) & 1;
+                paridad ^= (bits >> i) & 1;
             }
     
             // Lógica de corrección
             if (errorPos != 0) {
-                if (globalParity == 1) {
+                if (paridad == 1) {
                     // Error corregible (1 bit)
                     bits ^= (1 << (8 - errorPos));
                 } else {
                     // Dos errores detectados (no corregible)
                     System.out.println("Dos errores detectados, no se puede corregir.");
                 }
-            } else if (globalParity == 1) {
+            } else if (paridad == 1) {
                 // Error en el bit de paridad global
                 bits ^= 1; // Corregir el bit de paridad
             }
@@ -338,9 +338,9 @@ public class HammingFileProtector {
     public static byte[] hamming256Encode(byte[] data) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final int totalBits  = 256;
-        final int r          = 8;                       // r bits de paridad (7 primarios + 1 global)
-        final int dataBits   = totalBits - r;           // 248 bits de datos
-        final int blockBytes = 31;       // 31 bytes de datos
+        final int r          = 9;                       // r bits de paridad (8 control + 1 global)
+        final int dataBits   = totalBits - r;           // 247 bits de datos
+        final int blockBytes = 30;       // 30 bytes de datos, 1 byte de bits de control y 1 byte de bit de paridad(se desperdician 7 bits).
 
         for (int i = 0; i < data.length; i += blockBytes) {
             int end   = Math.min(i + blockBytes, data.length);
@@ -368,13 +368,13 @@ public class HammingFileProtector {
                     code[bitPos - 1] = bit;
                     dataBitIndex++;
                 }
-            }
+            }                                    
 
-            //  Calcular bits de control(posiciones 1,2,4,8,16,32,64)
-            for (int p = 0; p < r - 1; p++) {
+            //  Calcular bits de control(posiciones 1,2,4,8,16,32,64,128)
+            for (int p = 0; p < r; p++) {
                 int pos = 1 << p;
-                boolean parity = false;
-                for (int bitPos = 1; bitPos <= totalBits; bitPos++) {
+                boolean parity = false;   //Flaso = 0, True = Verdad
+                for (int bitPos = pos; bitPos <= totalBits; bitPos++) {
                     if (bitPos != pos && ((bitPos & pos) != 0)) {
                         parity ^= code[bitPos - 1];
                     }
@@ -382,15 +382,15 @@ public class HammingFileProtector {
                 code[pos - 1] = parity;
             }
 
-            // Calcular paridad global en posición 128 (2^(r-1))
-            int globalPos = 1 << (r - 1);
-            boolean globalParity = false;
+            // Calcular paridad global en posición 256 (2^(r-1))
+            int globalPos = 1 << (r-1);
+            boolean paridad = false;
             for (int bitPos = 1; bitPos <= totalBits; bitPos++) {
                 if (bitPos != globalPos) {
-                    globalParity ^= code[bitPos - 1];
+                    paridad ^= code[bitPos - 1];
                 }
             }
-            code[globalPos - 1] = globalParity;
+            code[globalPos - 1] = paridad;
 
             // 4) Empaquetar 8 bits en cada byte (big‑endian interno)
             for (int j = 0; j < totalBits; j += 8) {
@@ -409,10 +409,10 @@ public class HammingFileProtector {
     public static byte[] hamming256Decode(byte[] encodedData) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final int totalBits  = 256;
-        final int r          = 8;               // 7 bits de paridad + 1 global
+        final int r          = 9;               // 8 bits de paridad + 1 global
         final int codeBytes  = totalBits / 8;   // 32 bytes por bloque
-        final int dataBits   = totalBits - r;   // 248 bits de datos
-        final int blockBytes = dataBits / 8;    // 31 bytes de datos
+        final int dataBits   = totalBits - r;   // 247 bits de datos
+        final int blockBytes = dataBits / 8;    // 30 bytes de datos
 
         for (int i = 0; i < encodedData.length; i += codeBytes) {
             // 1) Leer bloque de 32 bytes como array de bits
@@ -436,14 +436,14 @@ public class HammingFileProtector {
                 if (parity) syndrome |= mask;
             }
             // 3) Paridad global
-            boolean globalParity = false;
+            boolean paridad = false;
             for (int bitPos = 1; bitPos <= totalBits; bitPos++) {
-                globalParity ^= code[bitPos - 1];
+                paridad ^= code[bitPos - 1];
             }
 
             // 4) Corregir si hay un solo bit malo
             if (syndrome != 0) {
-                if (globalParity) {
+                if (paridad) {
                     // corrige el bit en posición 'syndrome'
                     int idx = syndrome - 1;
                     code[idx] = !code[idx];
@@ -477,10 +477,10 @@ public class HammingFileProtector {
     public static byte[] hamming256DecodeNoCorrect(byte[] encodedData) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final int totalBits  = 256;
-        final int r          = 8;               // 7 paridad primarios + 1 global
+        final int r          = 9;               // 8 paridad primarios + 1 global
         final int codeBytes  = totalBits / 8;   // 32 bytes por bloque
-        final int dataBits   = totalBits - r;   // 248 bits de datos
-        final int blockBytes = dataBits / 8;    // 31 bytes de datos
+        final int dataBits   = totalBits - r;   // 247 bits de datos
+        final int blockBytes = dataBits / 8;    // 30 bytes de datos
 
         for (int i = 0; i < encodedData.length; i += codeBytes) {
             // 1) Leer bloque de 32 bytes a array de bits
@@ -514,9 +514,9 @@ public class HammingFileProtector {
     public static byte[] hamming4096Encode(byte[] data) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final int totalBits  = 4096;
-        final int r          = 12;                      // 11 primarios + 1 global
-        final int dataBits   = totalBits - r;           // 4084 bits de datos
-        final int blockBytes = (dataBits + 7) / 8;       // 511 bytes de datos (4088 bits, se ignoran últimos bits faltantes)
+        final int r          = 13;                      // 12 control + 1 paridad  Sobran 3 bits
+        final int dataBits   = totalBits - r;           // 4083 bits de datos
+        final int blockBytes = (dataBits) / 8;       // 510 bytes de datos (4083? bits, se ignoran últimos bits faltantes)
 
         for (int i = 0; i < data.length; i += blockBytes) {
             int end   = Math.min(i + blockBytes, data.length);
@@ -543,7 +543,7 @@ public class HammingFileProtector {
                     dataBitIndex++;
                 }
             }
-            // 2) Paridades primarias
+            // 2) Bits de control
             for (int p = 0; p < r - 1; p++) {
                 int pos = 1 << p;
                 boolean parity = false;
@@ -556,13 +556,13 @@ public class HammingFileProtector {
             }
             // 3) Paridad global
             int globalPos = 1 << (r - 1);
-            boolean globalParity = false;
+            boolean paridad = false;
             for (int bitPos = 1; bitPos <= totalBits; bitPos++) {
                 if (bitPos != globalPos) {
-                    globalParity ^= code[bitPos - 1];
+                    paridad ^= code[bitPos - 1];
                 }
             }
-            code[globalPos - 1] = globalParity;
+            code[globalPos - 1] = paridad;
 
             // 4) Packing
             for (int j = 0; j < totalBits; j += 8) {
@@ -580,10 +580,10 @@ public class HammingFileProtector {
     public static byte[] hamming4096Decode(byte[] encodedData) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final int totalBits  = 4096;
-        final int r          = 12;                     // 11 primarios + 1 global
+        final int r          = 13;                     // 12 primarios + 1 global
         final int codeBytes  = totalBits / 8;          // 512 bytes por bloque
-        final int dataBits   = totalBits - r;          // 4084 bits de datos
-        final int blockBytes = (dataBits + 7) / 8;     // 511 bytes de datos
+        final int dataBits   = totalBits - r;          // 4083 bits de datos
+        final int blockBytes = (dataBits) / 8;     // 510 bytes de datos
 
         for (int i = 0; i < encodedData.length; i += codeBytes) {
             // 1) Reconstruir array de bits de 4096 posiciones
@@ -608,14 +608,14 @@ public class HammingFileProtector {
             }
 
             // 3) Calcular paridad global (incluye todos los bits del código)
-            boolean globalParity = false;
+            boolean paridad = false;
             for (int bitPos = 1; bitPos <= totalBits; bitPos++) {
-                globalParity ^= code[bitPos - 1];
+                paridad ^= code[bitPos - 1];
             }
 
             // 4) Corregir si hay un solo bit malo
             if (syndrome != 0) {
-                if (globalParity) {
+                if (paridad) {
                     // un solo error: invertimos ese bit
                     code[syndrome - 1] = !code[syndrome - 1];
                 } else {
@@ -648,9 +648,9 @@ public class HammingFileProtector {
     public static byte[] hamming4096DecodeNoCorrect(byte[] encodedData) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         final int totalBits  = 4096;
-        final int r          = 12;              // 11 paridad primarios + 1 global
+        final int r          = 13;              // 12 paridad primarios + 1 global
         final int codeBytes  = totalBits / 8;   // 512 bytes por bloque
-        final int dataBits   = totalBits - r;   // 4084 bits de datos
+        final int dataBits   = totalBits - r;   // 4083 bits de datos
         final int blockBytes = dataBits / 8;    // 510 bytes de datos (los bits sobrantes se ignoran)
 
         for (int i = 0; i < encodedData.length; i += codeBytes) {
@@ -695,7 +695,8 @@ public class HammingFileProtector {
         byte[] corrupted = Arrays.copyOf(data, data.length);
         Random random = new Random();
 
-        int blocks = data.length / blockSize;
+        System.out.println(blockSize + "\n");
+        int blocks = data.length / (blockSize / 8);
         for (int i = 0; i < blocks; i++) {
             if (random.nextDouble() < 0.5) { // 50% de probabilidad de error por bloque
                 int pos = i * blockSize + random.nextInt(blockSize);
